@@ -1,0 +1,62 @@
+name: Publish existing RAX3000M firmware
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Successful build run ID containing the firmware artifact"
+        required: true
+        type: string
+        default: '42156239936'
+      source_commit:
+        description: "Commit used to build the firmware (release tag target)"
+        required: true
+        type: string
+        default: '878cc04f63c32e62a7c989f47017a9d0990c10dd'
+      release_tag:
+        description: "Release tag to create or update"
+        required: true
+        type: string
+        default: 'build-20261106-2'
+      release_name:
+        description: "Release title"
+        required: true
+        type: string
+        default: 'RAX3000M 固件 20261106 #2'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download previously built firmware (no rebuild)
+        uses: actions/download-artifact@v4
+        with:
+          name: immortalwrt-25.12-rax3000m-firmware
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: firmware
+
+      - name: Verify downloaded firmware
+        run: |
+          find firmware -maxdepth 1 -type f -printf '%f (%s bytes)\n'
+          test -n "$(find firmware -maxdepth 1 -type f -name '*sysupgrade*' -print -quit)"
+
+      - name: Create release from existing artifact
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: ${{ inputs.release_name }}
+          target_commitish: ${{ inputs.source_commit }}
+          body: |
+            ## RAX3000M firmware (recovered from completed build)
+            - Source workflow run: ${{ inputs.source_run_id }}
+            - Source commit: ${{ inputs.source_commit }}
+            - Firmware compiled successfully; this workflow only republishes its artifact.
+          files: firmware/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
