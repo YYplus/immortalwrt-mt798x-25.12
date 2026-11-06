@@ -1,0 +1,7 @@
+#!/bin/sh
+# Choose Vantage as the default LuCI theme on first boot.
+# Runs after the theme's own 30_luci-theme-vantage initializer.
+[ -f /usr/share/ucode/luci/template/themes/vantage/header.ut ] || exit 0
+uci set luci.main.mediaurlbase='/luci-static/vantage'
+uci commit luci
+exit 0
