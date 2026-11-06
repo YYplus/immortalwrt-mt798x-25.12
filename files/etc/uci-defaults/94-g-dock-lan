@@ -1,0 +1,15 @@
+#!/bin/sh
+# Set LAN to 192.168.15.1/24 on clean installs, without overwriting custom LAN IPs.
+# config_generate normally creates network.lan.ipaddr as a UCI list.
+lan_ip="$(uci -q get network.lan.ipaddr)" || exit 0
+case "$lan_ip" in
+  '192.168.1.1'|'192.168.1.1/24') ;;
+  *) exit 0 ;;
+esac
+uci -q delete network.lan.ipaddr || exit 1
+uci add_list network.lan.ipaddr='192.168.15.1/24' || exit 1
+# Correct an explicitly configured default broadcast, if present.
+if [ "$(uci -q get network.lan.broadcast)" = '192.168.1.255' ]; then
+  uci set network.lan.broadcast='192.168.15.255' || exit 1
+fi
+uci commit network
