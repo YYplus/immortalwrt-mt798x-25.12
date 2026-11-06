@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -95,7 +98,7 @@ jobs:
 
       - name: Create Release and Upload Assets
         if: steps.check.outputs.need_build == 'true'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: "RAX3000M 固件 ${{ steps.date.outputs.date }} #${{ github.run_number }}"
           tag_name: "build-${{ steps.date.outputs.date }}-${{ github.run_number }}"
