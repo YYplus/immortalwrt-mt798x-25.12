@@ -68,21 +68,6 @@ jobs:
           mkdir -p files/etc/uci-defaults
           install -m 0755 ../files/etc/uci-defaults/zzzz-vantage-theme files/etc/uci-defaults/zzzz-vantage-theme
 
-          # OpenClash Meta core (aarch64/MT7981): bundle into SquashFS.
-          # Pin version and SHA-256 to prevent unverified or silent binary changes.
-          MIHOMO_VERSION='v1.19.33'
-          MIHOMO_ARCHIVE="mihomo-linux-arm64-${MIHOMO_VERSION}.gz"
-          MIHOMO_SHA256='ba408b317080ee265c46cb923a50018c1b82cbd708551cdd46a1e3e307396187'
-          curl -fL --retry 3 --connect-timeout 30 \
-            -o "/tmp/${MIHOMO_ARCHIVE}" \
-            "https://github.com/MetaCubeX/mihomo/releases/download/${MIHOMO_VERSION}/${MIHOMO_ARCHIVE}"
-          echo "${MIHOMO_SHA256}  /tmp/${MIHOMO_ARCHIVE}" | sha256sum -c -
-          mkdir -p files/etc/openclash/core
-          gzip -dc "/tmp/${MIHOMO_ARCHIVE}" > files/etc/openclash/core/clash_meta
-          chmod 0755 files/etc/openclash/core/clash_meta
-          rm -f "/tmp/${MIHOMO_ARCHIVE}"
-          echo "Bundled OpenClash Meta core ${MIHOMO_VERSION} (linux-arm64)"
-
           # 同步新软件包的选项及依赖
           make defconfig
           # 下载编译所需的源码包
@@ -124,7 +109,7 @@ jobs:
             - 编译编号：#${{ github.run_number }}
             - 设备：CMCC RAX3000M (eMMC / NAND)
             - 内核：6.12（25.12 版本）
-            - 包含插件：OpenClash（内置 Mihomo v1.19.33）、Vantage、磁盘管理、Argon 主题等
+            - 包含插件：OpenClash、磁盘管理、Argon 主题等
             - 上游：chasey-dev/immortalwrt-mt798x-rebase
           files: openwrt/bin/targets/mediatek/filogic/*
         env:
