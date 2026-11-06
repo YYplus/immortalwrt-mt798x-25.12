@@ -152,6 +152,24 @@ jobs:
           path: openwrt/bin/targets/mediatek/filogic/
           if-no-files-found: warn
 
+      - name: Tag source commit for firmware release
+        if: steps.check.outputs.need_build == 'true'
+        env:
+          RELEASE_TAG: build-${{ steps.date.outputs.date }}-${{ github.run_number }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if git show-ref --verify --quiet "refs/tags/${RELEASE_TAG}"; then
+            TAG_COMMIT="$(git rev-list -n 1 "${RELEASE_TAG}")"
+            test "${TAG_COMMIT}" = "${SOURCE_COMMIT}" || {
+              echo "Release tag already exists at a different commit" >&2
+              exit 1
+            }
+          else
+            git tag "${RELEASE_TAG}" "${SOURCE_COMMIT}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          fi
+
       - name: Create Release and Upload Assets
         if: steps.check.outputs.need_build == 'true'
         uses: softprops/action-gh-release@v2
