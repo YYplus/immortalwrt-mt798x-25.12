@@ -2,6 +2,12 @@ name: Auto ImmortalWrt 25.12 for RAX3000M
 
 on:
   workflow_dispatch:
+    inputs:
+      use_cache:
+        description: 'Restore and save source/ccache caches'
+        required: false
+        default: true
+        type: boolean
   schedule:
     - cron: '0 0 * * *'
 
@@ -51,7 +57,7 @@ jobs:
           git clone https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git openwrt -b 25.12
 
       - name: Restore source download cache
-        if: steps.check.outputs.need_build == 'true'
+        if: steps.check.outputs.need_build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.use_cache)
         id: dl_cache
         uses: actions/cache/restore@v4
         with:
@@ -61,7 +67,7 @@ jobs:
             ${{ runner.os }}-rax3000m-25.12-dl-v1-
 
       - name: Restore compiler cache
-        if: steps.check.outputs.need_build == 'true'
+        if: steps.check.outputs.need_build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.use_cache)
         id: cc_cache
         uses: actions/cache/restore@v4
         with:
@@ -95,7 +101,7 @@ jobs:
           df -h .
 
       - name: Save source download cache
-        if: steps.check.outputs.need_build == 'true' && steps.dl_cache.outputs.cache-hit != 'true'
+        if: steps.check.outputs.need_build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.use_cache) && steps.dl_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: openwrt/dl
@@ -122,7 +128,7 @@ jobs:
           rm -rf bin/targets/mediatek/filogic/packages
 
       - name: Save compiler cache
-        if: steps.check.outputs.need_build == 'true' && steps.cc_cache.outputs.cache-hit != 'true'
+        if: steps.check.outputs.need_build == 'true' && (github.event_name != 'workflow_dispatch' || inputs.use_cache) && steps.cc_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: openwrt/.ccache
