@@ -94,6 +94,7 @@ jobs:
           mkdir -p files/etc/uci-defaults
           install -m 0755 ../files/etc/uci-defaults/zzzz-vantage-theme files/etc/uci-defaults/zzzz-vantage-theme
           install -m 0755 ../files/etc/uci-defaults/95-g-dock-hostname files/etc/uci-defaults/95-g-dock-hostname
+          install -m 0755 ../files/etc/uci-defaults/94-g-dock-lan files/etc/uci-defaults/94-g-dock-lan
 
           make defconfig
           grep -q '^CONFIG_CCACHE=y$' .config || { echo 'OpenWrt ccache is not enabled'; exit 1; }
