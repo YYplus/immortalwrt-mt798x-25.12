@@ -49,12 +49,24 @@ jobs:
           git clone https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git openwrt -b 25.12
           cd openwrt
           
-          # 更新 feeds
+          # 使用当前 Fork 的 feeds 清单（保留 OpenClash 软件源）
+          cp ../feeds.conf.default feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          
-          # 复制你自己的配置文件
+
+          # Vantage 源码编译：作为本地 package，而非独立运行时 APK feed
+          # 固定到已发布的版本，便于构建复现
+          git clone --depth 1 --branch v1.0.15 https://github.com/anothaDev/luci-theme-vantage.git package/vantage
+
+          # 设备和插件配置
           cp ../defconfig/rax3000m-openclash.config .config
+
+          # 确保首次启动时 Vantage 优先于其他 LuCI 主题
+          mkdir -p files/etc/uci-defaults
+          install -m 0755 ../files/etc/uci-defaults/zzzz-vantage-theme files/etc/uci-defaults/zzzz-vantage-theme
+
+          # 同步新软件包的选项及依赖
+          make defconfig
           # 下载编译所需的源码包
           make download -j$(nproc)
           # 开始编译
