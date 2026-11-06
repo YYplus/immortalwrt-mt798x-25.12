@@ -45,38 +45,88 @@ jobs:
           echo "上游无更新，跳过编译"
           exit 0
 
-      - name: Build firmware
+      - name: Clone upstream source
         if: steps.check.outputs.need_build == 'true'
         run: |
-          # 克隆 chasey-dev 25.12 仓库源码
           git clone https://github.com/chasey-dev/immortalwrt-mt798x-rebase.git openwrt -b 25.12
+
+      - name: Restore source download cache
+        if: steps.check.outputs.need_build == 'true'
+        id: dl_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: openwrt/dl
+          key: ${{ runner.os }}-rax3000m-25.12-dl-v1-${{ hashFiles('feeds.conf.default', 'defconfig/rax3000m-openclash.config') }}-${{ steps.check.outputs.upstream_commit }}
+          restore-keys: |
+            ${{ runner.os }}-rax3000m-25.12-dl-v1-
+
+      - name: Restore compiler cache
+        if: steps.check.outputs.need_build == 'true'
+        id: cc_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: openwrt/.ccache
+          key: ${{ runner.os }}-rax3000m-25.12-ccache-v1-${{ hashFiles('defconfig/rax3000m-openclash.config') }}-${{ steps.check.outputs.upstream_commit }}
+          restore-keys: |
+            ${{ runner.os }}-rax3000m-25.12-ccache-v1-
+
+      - name: Prepare sources and download dependencies
+        if: steps.check.outputs.need_build == 'true'
+        run: |
           cd openwrt
-          
-          # 使用当前 Fork 的 feeds 清单（保留 OpenClash 软件源）
+          mkdir -p dl .ccache
+
+          # Use the fork's feed list while keeping OpenClash out of runtime APK repositories.
           cp ../feeds.conf.default feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-          # Vantage 源码编译：作为本地 package，而非独立运行时 APK feed
-          # 固定到已发布的版本，便于构建复现
+          # Pin Vantage to a released version.
           git clone --depth 1 --branch v1.0.15 https://github.com/anothaDev/luci-theme-vantage.git package/vantage
 
-          # 设备和插件配置
           cp ../defconfig/rax3000m-openclash.config .config
-
-          # 确保首次启动时 Vantage 优先于其他 LuCI 主题
           mkdir -p files/etc/uci-defaults
           install -m 0755 ../files/etc/uci-defaults/zzzz-vantage-theme files/etc/uci-defaults/zzzz-vantage-theme
 
-          # 同步新软件包的选项及依赖
           make defconfig
-          # 下载编译所需的源码包
-          make download -j$(nproc)
-          # 开始编译
-          make -j$(nproc)
-          
-          # 删除 packages 目录（不需要上传）
+          grep -q '^CONFIG_CCACHE=y$' .config || { echo 'OpenWrt ccache is not enabled'; exit 1; }
+          make download -j"$(nproc)"
+          du -sh dl .ccache || true
+          df -h .
+
+      - name: Save source download cache
+        if: steps.check.outputs.need_build == 'true' && steps.dl_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: openwrt/dl
+          key: ${{ steps.dl_cache.outputs.cache-primary-key }}
+
+      - name: Build firmware
+        if: steps.check.outputs.need_build == 'true'
+        env:
+          CCACHE_MAXSIZE: 1G
+        run: |
+          cd openwrt
+          make -j"$(nproc)"
+
+          # Report cache usage; never fail a successful build for missing stats.
+          if [ -x staging_dir/host/bin/ccache ]; then
+            staging_dir/host/bin/ccache --show-stats || true
+          elif command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats || true
+          fi
+          du -sh .ccache dl || true
+          df -h .
+
+          # Do not upload the binary package repository.
           rm -rf bin/targets/mediatek/filogic/packages
+
+      - name: Save compiler cache
+        if: steps.check.outputs.need_build == 'true' && steps.cc_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: openwrt/.ccache
+          key: ${{ steps.cc_cache.outputs.cache-primary-key }}
 
       - name: Update sync record
         if: steps.check.outputs.need_build == 'true'
