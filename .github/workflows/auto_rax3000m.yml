@@ -173,13 +173,34 @@ jobs:
 
       - name: Update sync record
         if: steps.check.outputs.need_build == 'true'
+        env:
+          UPSTREAM_COMMIT: ${{ steps.check.outputs.upstream_commit }}
         run: |
-          echo "${{ steps.check.outputs.upstream_commit }}" > .last_sync_commit
+          set -euo pipefail
+          test -n "$UPSTREAM_COMMIT"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .last_sync_commit
-          git commit -m "Update sync record" || true
-          git push || true
+
+          # The repository can change while firmware is compiling.
+          # Update the sync marker on the latest remote commit instead of
+          # pushing the stale checkout (never force-push).
+          for attempt in 1 2 3 4 5; do
+            git fetch origin 25.12
+            git reset --hard origin/25.12
+            printf '%s\n' "$UPSTREAM_COMMIT" > .last_sync_commit
+            if git diff --quiet -- .last_sync_commit; then
+              echo "Sync marker is already current."
+              exit 0
+            fi
+            git add .last_sync_commit
+            git commit -m "Update sync record"
+            if git push origin HEAD:25.12; then
+              exit 0
+            fi
+            echo "Remote branch moved; retrying sync marker update ($attempt/5)" >&2
+          done
+          echo "Failed to update sync marker after five attempts" >&2
+          exit 1
 
       - name: Upload firmware
         if: steps.check.outputs.need_build == 'true'
