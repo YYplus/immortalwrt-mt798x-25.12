@@ -87,6 +87,19 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+          # OpenClash explicitly depends on ip-full, while the upstream
+          # hnat-detect package recently added an ip-tiny dependency.
+          # Align hnat-detect with ip-full without modifying upstream git.
+          hnat_makefile=package/mtk/applications/hnat-detect/Makefile
+          if grep -Fq '+kmod-dummy +ip-tiny +firewall4' "$hnat_makefile"; then
+            sed -i 's/+kmod-dummy +ip-tiny +firewall4/+kmod-dummy +ip-full +firewall4/' "$hnat_makefile"
+          elif grep -Fq '+kmod-dummy +ip-full +firewall4' "$hnat_makefile"; then
+            echo 'hnat-detect already uses ip-full'
+          else
+            echo 'hnat-detect dependencies changed upstream; refusing blind rewrite' >&2
+            exit 1
+          fi
+
           # Pin Vantage to a released version.
           git clone --depth 1 --branch v1.0.15 https://github.com/anothaDev/luci-theme-vantage.git package/vantage
 
