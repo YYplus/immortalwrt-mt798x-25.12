@@ -115,7 +115,12 @@ jobs:
           CCACHE_MAXSIZE: 1G
         run: |
           cd openwrt
-          make -j"$(nproc)"
+          # Build in parallel first. If it fails, retry serially with verbose
+          # output so the underlying package error is visible in Actions logs.
+          if ! make -j"$(nproc)"; then
+            echo 'Parallel build failed; retrying with make -j1 V=s for diagnostics.'
+            make -j1 V=s
+          fi
 
           # Report cache usage; never fail a successful build for missing stats.
           if [ -x staging_dir/host/bin/ccache ]; then
