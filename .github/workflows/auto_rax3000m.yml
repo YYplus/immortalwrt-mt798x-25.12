@@ -87,6 +87,17 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+          # hnat-detect currently requires ip-tiny, which conflicts with
+          # the selected ip-full package. ip-full provides the needed ip
+          # utility, so use it as the dependency without removing features.
+          hnat_makefile=package/mtk/applications/hnat-detect/Makefile
+          if grep -q 'DEPENDS:=$(UCODE_DEPENDS) +kmod-dummy +ip-tiny +firewall4' "$hnat_makefile"; then
+            sed -i 's/+kmod-dummy +ip-tiny +firewall4/+kmod-dummy +ip-full +firewall4/' "$hnat_makefile"
+          else
+            echo "Unexpected hnat-detect dependencies; refusing unverified patch" >&2
+            exit 1
+          fi
+
           # Pin Vantage to a released version.
           git clone --depth 1 --branch v1.0.15 https://github.com/anothaDev/luci-theme-vantage.git package/vantage
 
