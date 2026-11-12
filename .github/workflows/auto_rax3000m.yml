@@ -90,6 +90,10 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+          # Rust CI LLVM artifacts can age out and return 404.
+          # Build LLVM locally to avoid flaky bootstrap downloads.
+          sed -i 's/--set=llvm.download-ci-llvm=true/--set=llvm.download-ci-llvm=false/' feeds/packages/lang/rust/Makefile
+
           # Pin Vantage to a released version.
           git clone --depth 1 --branch v1.0.15 https://github.com/anothaDev/luci-theme-vantage.git package/vantage
 
